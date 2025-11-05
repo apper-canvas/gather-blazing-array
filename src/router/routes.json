@@ -1,0 +1,187 @@
+{
+  "/": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Homepage is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/events": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Events page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/events/:id": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Event details are public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/about": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "About page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/login": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Login page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/signup": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Signup page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/callback": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Callback page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/error": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Error page is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/reset-password/*": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Reset password is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/prompt-password/*": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "Prompt password is public",
+            "rule": "public"
+          }
+        ]
+      }
+    }
+  },
+  "/dashboard": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "User must be logged in to access dashboard",
+            "rule": "authenticated"
+          }
+        ]
+      },
+      "redirectOnDeny": "/login"
+    }
+  },
+  "/my-events": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "User must be logged in to view their events",
+            "rule": "authenticated"
+          }
+        ]
+      },
+      "redirectOnDeny": "/login"
+    }
+  },
+  "/create-event": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "User must be logged in to create events",
+            "rule": "authenticated"
+          }
+        ]
+      },
+      "redirectOnDeny": "/login"
+    }
+  },
+  "/edit-event/:id": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "User must be logged in to edit events",
+            "rule": "authenticated"
+          }
+        ]
+      },
+      "redirectOnDeny": "/login"
+    }
+  },
+  "/profile": {
+    "allow": {
+      "when": {
+        "conditions": [
+          {
+            "label": "User must be logged in to view profile",
+            "rule": "authenticated"
+          }
+        ]
+      },
+      "redirectOnDeny": "/login"
+    }
+  }
+}

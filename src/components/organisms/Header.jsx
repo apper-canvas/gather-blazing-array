@@ -62,7 +62,7 @@ const Header = () => {
 
           {/* Auth Section */}
           <div className="flex items-center gap-3">
-            {isAuthenticated ? (
+{isAuthenticated ? (
               <>
                 <Link to="/create-event" className="hidden sm:block">
                   <Button size="sm" className="flex items-center gap-2">
@@ -70,6 +70,7 @@ const Header = () => {
                     Create Event
                   </Button>
                 </Link>
+                <UserMenu />
                 <UserMenu />
               </>
             ) : (

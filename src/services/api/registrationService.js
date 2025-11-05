@@ -1,205 +1,281 @@
-import mockRegistrations from "@/services/mockData/registrations.json";
+import { getApperClient } from "@/services/apperClient";
+import { toast } from "react-toastify";
+import React from "react";
+import Error from "@/components/ui/Error";
 
 class RegistrationService {
-  constructor() {
-this.registrations = [...mockRegistrations];
-    this.nextId = Math.max(...this.registrations.map(reg => reg.Id)) + 1;
+  async getAll() {
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "event_id_c"}},
+          {"field": {"Name": "user_id_c"}},
+          {"field": {"Name": "status_c"}},
+          {"field": {"Name": "registered_at_c"}},
+          {"field": {"Name": "CreatedOn"}},
+          {"field": {"Name": "ModifiedOn"}}
+        ],
+        orderBy: [{"fieldName": "CreatedOn", "sorttype": "DESC"}]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching registrations:", error?.response?.data?.message || error);
+      toast.error("Failed to load registrations");
+      return [];
+    }
+  }
+
+  async create(registrationData) {
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      // Map form data to database field names, including only updateable fields
+      const dbData = {
+        event_id_c: parseInt(registrationData.eventId || registrationData.event_id_c),
+        user_id_c: registrationData.userId || registrationData.user_id_c || "current-user",
+        status_c: registrationData.status || registrationData.status_c || "confirmed",
+        registered_at_c: new Date().toISOString()
+      };
+
+      const response = await apperClient.createRecord('registration_c', {
+        records: [dbData]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        throw new Error("Failed to create registration");
+      }
+
+      if (response.results) {
+        const successful = response.results.filter(r => r.success);
+        const failed = response.results.filter(r => !r.success);
+        
+        if (failed.length > 0) {
+          console.error(`Failed to create ${failed.length} registrations:`, failed);
+          failed.forEach(record => {
+            record.errors?.forEach(error => toast.error(`${error.fieldLabel}: ${error}`));
+            if (record.message) toast.error(record.message);
+          });
+        }
+        
+        if (successful.length > 0) {
+          toast.success("Registration successful!");
+          return successful[0].data;
+        }
+      }
+
+      throw new Error("No successful registration result");
+    } catch (error) {
+      console.error("Error creating registration:", error?.response?.data?.message || error);
+      toast.error("Failed to register for event");
+      throw error;
+    }
   }
 
   async getRegistrationCountForEvent(eventId) {
-    await this.delay();
-    return this.registrations.filter(reg => reg.eventId === eventId && reg.status === "confirmed").length;
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [{"field": {"Name": "Name"}}],
+        where: [
+          {"FieldName": "event_id_c", "Operator": "EqualTo", "Values": [parseInt(eventId)]},
+          {"FieldName": "status_c", "Operator": "EqualTo", "Values": ["confirmed"]}
+        ]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return 0;
+      }
+
+      return response.total || 0;
+    } catch (error) {
+      console.error("Error getting registration count:", error);
+      return 0;
+    }
   }
 
   async getWaitlistCountForEvent(eventId) {
-    await this.delay();
-    return this.registrations.filter(reg => reg.eventId === eventId && reg.status === "waitlist").length;
-  }
-
-  async getWaitlistPositionForUser(eventId, userId) {
-    await this.delay();
-    const waitlistRegistrations = this.registrations
-      .filter(reg => reg.eventId === eventId && reg.status === "waitlist")
-      .sort((a, b) => new Date(a.registeredAt) - new Date(b.registeredAt));
-    
-    const userRegistration = waitlistRegistrations.find(reg => reg.userId === userId);
-    return userRegistration ? waitlistRegistrations.indexOf(userRegistration) + 1 : null;
-  }
-
-  async delay() {
-    return new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 100));
-  }
-
-  async getAll() {
-    await this.delay();
-    return [...this.registrations];
-  }
-
-  async getById(id) {
-    await this.delay();
-    const registration = this.registrations.find(reg => reg.Id === id);
-    if (!registration) {
-      throw new Error("Registration not found");
-    }
-    return { ...registration };
-  }
-
-async create(registrationData) {
-    await this.delay();
-    
-    // Import event service to check capacity
-const { eventService } = await import('./eventService.js');
-    const event = await eventService.getById(registrationData.eventId);
-    const confirmedCount = await this.getRegistrationCountForEvent(registrationData.eventId);
-    
-    // Determine registration status based on capacity
-    const status = confirmedCount >= event.capacity ? "waitlist" : "confirmed";
-    
-    const newRegistration = {
-      ...registrationData,
-      Id: this.nextId++,
-      status: status,
-      registeredAt: new Date().toISOString()
-    };
-    this.registrations.push(newRegistration);
-    
-    // Send notification email after successful registration
-    if (registrationData.userEmail) {
-      try {
-        // Initialize ApperClient for email notifications
-        const { ApperClient } = window.ApperSDK || {};
-        if (ApperClient) {
-          const apperClient = new ApperClient({
-            apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
-            apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
-          });
-
-          // Prepare email data
-          const emailData = {
-            type: status === 'confirmed' ? 'registration_confirmation' : 'waitlist_confirmation',
-            to: registrationData.userEmail,
-            data: {
-              userName: registrationData.userName || 'Event Participant',
-              eventTitle: event.title,
-              eventDate: new Date(event.date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              }),
-              eventTime: `${event.startTime} - ${event.endTime}`,
-              eventLocation: event.location,
-              status: status,
-              registrationId: newRegistration.Id,
-              eventId: event.Id
-            }
-          };
-
-          // Send notification email
-          await apperClient.functions.invoke(import.meta.env.VITE_SEND_NOTIFICATION_EMAIL, {
-            body: JSON.stringify(emailData),
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-      } catch (emailError) {
-        // Log email error but don't fail the registration
-        console.info(`apper_info: Got an error in this function: ${import.meta.env.VITE_SEND_NOTIFICATION_EMAIL}. The error is: ${emailError.message}`);
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
       }
-    }
-    
-    return { ...newRegistration };
-  }
 
-async update(id, registrationData) {
-    await this.delay();
-    const index = this.registrations.findIndex(reg => reg.Id === id);
-    if (index === -1) {
-      throw new Error("Registration not found");
-    }
-    
-    const oldRegistration = { ...this.registrations[index] };
-    this.registrations[index] = {
-      ...this.registrations[index],
-      ...registrationData
-    };
-    
-    // Send notification if status changed from waitlist to confirmed
-    if (oldRegistration.status === 'waitlist' && 
-        registrationData.status === 'confirmed' && 
-        this.registrations[index].userEmail) {
-      
-      try {
-        const { eventService } = await import('./eventService.js');
-        const event = await eventService.getById(this.registrations[index].eventId);
-        
-        const { ApperClient } = window.ApperSDK || {};
-        if (ApperClient) {
-          const apperClient = new ApperClient({
-            apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
-            apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
-          });
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [{"field": {"Name": "Name"}}],
+        where: [
+          {"FieldName": "event_id_c", "Operator": "EqualTo", "Values": [parseInt(eventId)]},
+          {"FieldName": "status_c", "Operator": "EqualTo", "Values": ["waitlist"]}
+        ]
+      });
 
-          const emailData = {
-            type: 'registration_confirmation',
-            to: this.registrations[index].userEmail,
-            data: {
-              userName: this.registrations[index].userName || 'Event Participant',
-              eventTitle: event.title,
-              eventDate: new Date(event.date).toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              }),
-              eventTime: `${event.startTime} - ${event.endTime}`,
-              eventLocation: event.location,
-              status: 'confirmed',
-              registrationId: this.registrations[index].Id,
-              eventId: event.Id
-            }
-          };
-
-          await apperClient.functions.invoke(import.meta.env.VITE_SEND_NOTIFICATION_EMAIL, {
-            body: JSON.stringify(emailData),
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-      } catch (emailError) {
-        console.info(`apper_info: Got an error in this function: ${import.meta.env.VITE_SEND_NOTIFICATION_EMAIL}. The error is: ${emailError.message}`);
+      if (!response.success) {
+        console.error(response.message);
+        return 0;
       }
+
+      return response.total || 0;
+    } catch (error) {
+      console.error("Error getting waitlist count:", error);
+      return 0;
     }
-    
-    return { ...this.registrations[index] };
-  }
-
-  async delete(id) {
-    await this.delay();
-    const index = this.registrations.findIndex(reg => reg.Id === id);
-    if (index === -1) {
-      throw new Error("Registration not found");
-    }
-    
-    this.registrations.splice(index, 1);
-    return { success: true };
-  }
-
-async getByEventId(eventId) {
-    await this.delay();
-    return this.registrations.filter(reg => reg.eventId === eventId);
-  }
-
-  async getByUserId(userId) {
-    await this.delay();
-    return this.registrations.filter(reg => reg.userId === userId);
   }
 
   async getUserRegistrationForEvent(eventId, userId) {
-    await this.delay();
-    return this.registrations.find(reg => reg.eventId === eventId && reg.userId === userId);
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "event_id_c"}},
+          {"field": {"Name": "user_id_c"}},
+          {"field": {"Name": "status_c"}},
+          {"field": {"Name": "registered_at_c"}}
+        ],
+        where: [
+          {"FieldName": "event_id_c", "Operator": "EqualTo", "Values": [parseInt(eventId)]},
+          {"FieldName": "user_id_c", "Operator": "EqualTo", "Values": [userId]}
+        ]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return null;
+      }
+
+      return response.data && response.data.length > 0 ? response.data[0] : null;
+    } catch (error) {
+      console.error("Error getting user registration:", error);
+      return null;
+    }
+  }
+
+  async getByEventId(eventId) {
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "event_id_c"}},
+          {"field": {"Name": "user_id_c"}},
+          {"field": {"Name": "status_c"}},
+          {"field": {"Name": "registered_at_c"}}
+        ],
+        where: [{"FieldName": "event_id_c", "Operator": "EqualTo", "Values": [parseInt(eventId)]}]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching event registrations:", error);
+      return [];
+    }
+  }
+
+  async getByUserId(userId) {
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.fetchRecords('registration_c', {
+        fields: [
+          {"field": {"Name": "Name"}},
+          {"field": {"Name": "event_id_c"}},
+          {"field": {"Name": "user_id_c"}},
+          {"field": {"Name": "status_c"}},
+          {"field": {"Name": "registered_at_c"}}
+        ],
+        where: [{"FieldName": "user_id_c", "Operator": "EqualTo", "Values": [userId]}]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        return [];
+      }
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error fetching user registrations:", error);
+      return [];
+    }
+  }
+
+  async delete(id) {
+    try {
+      const apperClient = getApperClient();
+      if (!apperClient) {
+        throw new Error("ApperClient not initialized");
+      }
+
+      const response = await apperClient.deleteRecord('registration_c', {
+        RecordIds: [parseInt(id)]
+      });
+
+      if (!response.success) {
+        console.error(response.message);
+        toast.error(response.message);
+        return false;
+      }
+
+      if (response.results) {
+        const successful = response.results.filter(r => r.success);
+        const failed = response.results.filter(r => !r.success);
+        
+        if (failed.length > 0) {
+          console.error(`Failed to delete ${failed.length} registrations:`, failed);
+          failed.forEach(record => {
+            if (record.message) toast.error(record.message);
+          });
+        }
+        
+        if (successful.length > 0) {
+          toast.success("Registration cancelled successfully!");
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error deleting registration:", error?.response?.data?.message || error);
+      toast.error("Failed to cancel registration");
+      return false;
+    }
   }
 }
 

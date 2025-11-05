@@ -28,18 +28,18 @@ const UserMenu = () => {
   };
 
   return (
-    <div className="relative" ref={menuRef}>
+<div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 p-2 rounded-lg hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-200 transition-all duration-200"
       >
-        <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
-          <span className="text-white text-sm font-medium">
-            {user?.name?.charAt(0)?.toUpperCase() || "U"}
+        <div className="w-8 h-8 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center text-white text-sm font-medium">
+          <span>
+            {user?.firstName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || "U"}
           </span>
         </div>
         <span className="hidden md:block text-sm font-medium text-secondary">
-          {user?.name || "User"}
+          {user?.firstName || user?.name || "User"}
         </span>
         <ApperIcon 
           name={isOpen ? "ChevronUp" : "ChevronDown"} 
@@ -58,8 +58,8 @@ const UserMenu = () => {
             className="absolute right-0 top-full mt-2 w-48 bg-surface rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden"
           >
             <div className="p-3 border-b border-gray-100">
-              <p className="font-medium text-secondary">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
+<p className="font-medium text-secondary">{user?.firstName || user?.name}</p>
+              <p className="text-xs text-gray-500">{user?.emailAddress || user?.email}</p>
             </div>
             
             <div className="py-2">

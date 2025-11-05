@@ -1,11 +1,11 @@
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import ApperIcon from "@/components/ApperIcon";
 import Button from "@/components/atoms/Button";
-import Input from "@/components/atoms/Input";
 import Card from "@/components/atoms/Card";
+import Input from "@/components/atoms/Input";
 import { useAuth } from "@/hooks/useAuth";
 
 const Signup = () => {
@@ -55,6 +55,7 @@ const Signup = () => {
     }
     
     setErrors(newErrors);
+setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
@@ -68,25 +69,36 @@ const Signup = () => {
     setIsLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock user creation and auto-login
-      await login({
-        email: formData.email,
+      // Use ApperSDK for signup
+      const { ApperAuth } = window.ApperSDK;
+      const result = await ApperAuth.signup({
         name: formData.name,
-        id: "user-123"
+        email: formData.email,
+        password: formData.password
       });
-      
-      toast.success("Account created successfully! Welcome to Gather!");
-      navigate("/dashboard");
+
+      if (result.success) {
+        toast.success("Account created successfully! Welcome to Gather!");
+        
+        // Auto-login after successful signup
+        await login(formData.email, formData.password);
+        navigate("/dashboard");
+      } else {
+        toast.error(result.message || "Failed to create account. Please try again.");
+      }
     } catch (error) {
-      toast.error("Failed to create account. Please try again.");
+      console.error("Signup error:", error);
+      toast.error(error.message || "An error occurred during signup. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    // Show signup form
+    const { ApperUI } = window.ApperSDK;
+    ApperUI.showSignup("#authentication");
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md">
@@ -118,45 +130,7 @@ const Signup = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <Input
-                label="Full Name"
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                error={errors.name}
-                placeholder="Enter your full name"
-              />
-
-              <Input
-                label="Email Address"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                error={errors.email}
-                placeholder="Enter your email"
-              />
-
-              <Input
-                label="Password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                error={errors.password}
-                placeholder="Create a password (min. 6 characters)"
-              />
-
-              <Input
-                label="Confirm Password"
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                error={errors.confirmPassword}
-                placeholder="Confirm your password"
-              />
+<div id="authentication" />
 
               <Button
                 type="submit"

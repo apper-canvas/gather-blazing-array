@@ -59,12 +59,9 @@ const Login = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mock authentication
-      await login({
-        email: formData.email,
-        name: formData.email.split("@")[0],
-        id: "user-123"
-      });
+// Show login form
+      const { ApperUI } = window.ApperSDK;
+      ApperUI.showLogin("#authentication");
       
       toast.success("Welcome back!");
       navigate("/dashboard");
@@ -167,12 +164,7 @@ const Login = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.3 }}
           >
-            <p className="text-sm text-primary font-medium mb-2 text-center">
-              Demo Credentials
-            </p>
-            <p className="text-xs text-center text-gray-600">
-              Use any email and password (min. 6 characters) to sign in
-            </p>
+<div id="authentication" />
           </motion.div>
         </motion.div>
       </div>

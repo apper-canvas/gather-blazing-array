@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import ApperIcon from "@/components/ApperIcon";
-import Card from "@/components/atoms/Card";
-import Button from "@/components/atoms/Button";
-import Badge from "@/components/atoms/Badge";
-import Loading from "@/components/ui/Loading";
-import Error from "@/components/ui/Error";
-import Empty from "@/components/ui/Empty";
+import { useSelector } from "react-redux";
 import { eventService } from "@/services/api/eventService";
 import { registrationService } from "@/services/api/registrationService";
-import { useAuth } from "@/hooks/useAuth";
+import ApperIcon from "@/components/ApperIcon";
+import Button from "@/components/atoms/Button";
+import Card from "@/components/atoms/Card";
+import Badge from "@/components/atoms/Badge";
+import Events from "@/components/pages/Events";
+import Error from "@/components/ui/Error";
+import Empty from "@/components/ui/Empty";
+import Loading from "@/components/ui/Loading";
 
 const Dashboard = () => {
-  const { user } = useAuth();
+const { user } = useSelector(state => state.user);
   const [stats, setStats] = useState({
     totalEvents: 0,
     registeredEvents: 0,
@@ -26,7 +27,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadDashboardData = async () => {
+const loadDashboardData = async () => {
     setLoading(true);
     setError("");
     
@@ -36,15 +37,15 @@ const Dashboard = () => {
         registrationService.getAll()
       ]);
 
-      // Mock user-specific data (in real app, this would come from API)
-      const userRegistrations = allRegistrations.filter(reg => reg.userId === "current-user");
-      const userEvents = allEvents.filter(event => event.organizerId === "current-user");
-      const registeredEventIds = userRegistrations.map(reg => reg.eventId);
+      // Filter user-specific data using database field names
+      const userRegistrations = allRegistrations.filter(reg => reg.user_id_c === user?.Id || reg.user_id_c === "current-user");
+      const userEvents = allEvents.filter(event => event.organizer_id_c === user?.Id || event.organizer_id_c === "current-user");
+      const registeredEventIds = userRegistrations.map(reg => reg.event_id_c);
       const userRegisteredEvents = allEvents.filter(event => registeredEventIds.includes(event.Id));
 
       const now = new Date();
-      const upcomingRegistered = userRegisteredEvents.filter(event => new Date(event.date) > now);
-      const upcomingCreated = userEvents.filter(event => new Date(event.date) > now);
+      const upcomingRegistered = userRegisteredEvents.filter(event => new Date(event.date_c) > now);
+      const upcomingCreated = userEvents.filter(event => new Date(event.date_c) > now);
 
       setStats({
         totalEvents: allEvents.length,
@@ -65,7 +66,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [user]);
 
   if (loading) return <Loading />;
   if (error) return <Error message={error} onRetry={loadDashboardData} />;
@@ -111,8 +112,8 @@ const Dashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-3xl font-bold text-secondary mb-2">
-            Welcome back, {user?.name}!
+<h1 className="text-3xl font-bold text-secondary mb-2">
+            Welcome back, {user?.firstName || user?.name || 'User'}!
           </h1>
           <p className="text-gray-600">
             Here's what's happening with your events
@@ -178,19 +179,19 @@ const Dashboard = () => {
               ) : (
                 <div className="space-y-4">
                   {registeredEvents.map((event) => (
-                    <div key={event.Id} className="flex items-center gap-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+<div key={event.Id} className="flex items-center gap-4 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                       <div className="w-16 h-16 bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <ApperIcon name="Calendar" className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-secondary mb-1 truncate">
-                          {event.title}
+                          {event.title_c}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
-                          {format(new Date(event.date), "MMM dd, yyyy")} at {event.startTime}
+                          {format(new Date(event.date_c), "MMM dd, yyyy")} at {event.start_time_c}
                         </p>
                         <Badge variant="primary" className="text-xs">
-                          {event.category}
+                          {event.category_c}
                         </Badge>
                       </div>
                       <Link to={`/events/${event.Id}`}>
@@ -235,22 +236,22 @@ const Dashboard = () => {
               ) : (
                 <div className="space-y-4">
                   {createdEvents.map((event) => (
-                    <div key={event.Id} className="flex items-center gap-4 p-3 bg-gradient-to-r from-accent/5 to-accent/10 rounded-lg">
+<div key={event.Id} className="flex items-center gap-4 p-3 bg-gradient-to-r from-accent/5 to-accent/10 rounded-lg">
                       <div className="w-16 h-16 bg-gradient-to-r from-accent/10 to-accent/20 rounded-lg flex items-center justify-center flex-shrink-0">
                         <ApperIcon name="Users" className="w-6 h-6 text-accent" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-secondary mb-1 truncate">
-                          {event.title}
+                          {event.title_c}
                         </h3>
                         <p className="text-sm text-gray-600 mb-2">
-                          {format(new Date(event.date), "MMM dd, yyyy")} at {event.startTime}
+                          {format(new Date(event.date_c), "MMM dd, yyyy")} at {event.start_time_c}
                         </p>
                         <div className="flex items-center gap-2">
-                          <Badge variant={event.isFeatured ? "accent" : "default"} className="text-xs">
-                            {event.category}
+                          <Badge variant={event.is_featured_c ? "accent" : "primary"} className="text-xs">
+                            {event.category_c}
                           </Badge>
-                          {event.isFeatured && (
+                          {event.is_featured_c && (
                             <Badge variant="accent" className="text-xs">Featured</Badge>
                           )}
                         </div>
@@ -260,7 +261,7 @@ const Dashboard = () => {
                           Edit
                         </Button>
                       </Link>
-                    </div>
+</div>
                   ))}
                 </div>
               )}
@@ -268,14 +269,14 @@ const Dashboard = () => {
           </motion.div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Call to Action */}
         <motion.div
-          className="mt-12"
+          className="text-center"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.6 }}
         >
-          <Card className="p-8 text-center bg-gradient-to-r from-primary/5 to-accent/5">
+          <Card className="p-12">
             <h3 className="text-2xl font-bold text-secondary mb-4">
               Ready to Create Your Next Event?
             </h3>
